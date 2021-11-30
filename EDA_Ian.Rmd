@@ -1,0 +1,58 @@
+---
+title: "EDA"
+author: "Ian Lo"
+date: "11/29/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(tidyverse)
+
+bikedata <- list.files(pattern = "*-citibike-tripdata.csv") %>% 
+  map_df(~read_csv(.))
+
+# NYC Covid Data: https://github.com/nychealth/coronavirus-data/tree/master/trends
+coviddata <- read_csv("COVIDcasedata.csv")
+
+# NYC Weather Data: New York, NY 10023 https://www.ncdc.noaa.gov/cdo-web/datasets/GHCND/locations/ZIP:10023/detail
+weatherdata <- read_csv("NYCWeather.csv")
+```
+## Data Clean-up
+```{r}
+# head(bikedata)
+# dim(bikedata)
+
+# clean up column names
+colnames(bikedata) = c("trip_duration", "start_time","stop_time","start_station_id","start_station_name","start_station_latitude","start_station_longitude","end_station_id","end_station_name","end_station_latitude","end_station_longitude","bike_id","user_type","birth_year","gender")
+
+# add trip_date based on start_time
+bikedata$trip_date <- as.Date(bikedata$start_time)
+
+# use sampled data instead of full dataset with 19M rows
+# sampled <- sample_n(bikedata, 1000) 
+
+# number of daily trips
+bikedata_summarized <- bikedata %>% group_by(trip_date) %>% summarise(daily_trips = n())
+bikedata_summarized_station <- bikedata %>% group_by(trip_date, start_station_name) %>% summarise(daily_trips = n())
+
+```
+
+```{r}
+ggplot(data = bikedata_summarized, aes(trip_date, daily_trips)) +
+  geom_line(color = "#379DDA", size = 0.7) +
+  scale_x_date(date_breaks = "1 month", date_labels =  "%b") +
+  scale_y_continuous(labels = scales::comma) +
+  labs(title = "Citi Bike Trips per Day in 2020",
+       x = "", y = "daily trips") +
+  theme_light() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.x = element_blank()
+        )
+
+```
+
