@@ -1,0 +1,193 @@
+---
+title: "260 Analysis"
+author: "James Wen"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+# Load Data and Create Variables
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(lubridate)
+library(splitstackshape)
+library(janitor)
+library(caret)
+library(ROSE)
+library(pROC)
+library(PRROC)
+# setwd("~/Desktop/21F/BST_260/Project/Data")
+set.seed(260)
+
+# bikedata <- list.files(pattern = "*-citibike-tripdata.csv") %>% 
+#   map_df(~read_csv(.))
+setwd("~/Desktop/21F/BST_260/Project")
+#bikedata <- readRDS("data.RDS")
+
+# bikedata_1 <- sample_frac(bikedata, 0.01) 
+
+# write.csv(bikedata_1, "sampled_data.csv")
+
+# bikedata_1 <- read.csv("bikedata_sampled_1percent.csv") 
+
+# load("bike_join.RData")
+#sample_size <- nrow(bike_join) %/% 100 
+#out <- stratified(bike_join, c("start_time"), sample_size)
+
+#bikedata_1 <- sample_frac(bike_join, 0.01) 
+
+# write.csv(bikedata_1, "geo_sample.csv")
+
+bikedata_1 <- read.csv("geo_sample.csv")
+
+
+
+
+# geo <- bikedata_1 %>% 
+#   select(suburb, major_city) %>% 
+#   mutate(suburb_major_ciy = paste(suburb,major_city, sep = ","))
+
+
+bikedata_2 <- bikedata_1 %>%
+  mutate(day_of_week = wday(start_time, label = TRUE, abbr = TRUE)) %>% 
+  # 1 = weekend, 0 = weekday
+  mutate(day_type = ifelse(day_of_week %in% c("Sat", "Sun"), 1,0)) %>% 
+  #mutate(age = 2020 - birth_year) %>% 
+  #mutate(trip_date = ymd(trip_date)) %>% 
+  mutate(month = month(start_time)) %>% 
+  mutate(age_cat = ifelse(age < 20, "Under 20",
+                          ifelse(age < 30, "20s",
+                                 ifelse(age < 40, "30s",
+                                        ifelse(age < 50, "40s",
+                                               ifelse( age < 60, "50s",
+                                                       ifelse(age < 70, "60s",
+                                                              ifelse(age < 80, "70s", "80+")))))))) %>% 
+  mutate(gender = as.factor(gender)) %>% 
+  mutate(user_type = factor(user_type, levels = c("Customer", "Subscriber"))) %>% 
+  mutate(season = ifelse(month %in% c(3,4,5), "Spring",
+                         ifelse(month %in% c(6,7,8), "Summer",
+                                ifelse(month %in% c(9,10,11), "Fall", "Winter")))) %>% 
+  mutate(winter = ifelse(season == "Winter", 1, 0))
+  
+```
+
+# Model Building 
+
+```{r}
+
+bikedata_3 <- bikedata_2 %>% 
+  mutate(user_type = ifelse(user_type == "Subscriber", 1, 0 )) %>% 
+  mutate(month = as.factor(month),
+         suburb = as.factor(suburb),
+         winter = as.factor(winter)) %>% 
+  select(user_type, gender, day_type, suburb, age, winter) %>% 
+  na.omit()
+
+bikedata_3$suburb <- relevel(bikedata_3$suburb , ref= "Manhattan")
+
+set.seed(260)
+x <- stratified(bikedata_3, "user_type", 0.8, keep.rownames = TRUE)
+train_set <- x %>% 
+  dplyr::select(-rn)
+train_index <- as.numeric(x$rn)
+test_set <- bikedata_3[-train_index,]
+dim(train_set)
+dim(test_set)
+```
+
+# Models based on available variables 
+
+For the first model, our predictors are gender, weekend (day_type), age, and whether it is winter. 
+
+```{r}
+model <- glm(user_type ~ gender + day_type + suburb + age + winter , data = bikedata_3, family = binomial)
+
+summary(model)
+
+predicted <- predict(model, newdata = test_set, type = "response" )
+
+classification <- ifelse(predicted > 0.5, 1, 0)
+confusionMatrix(data = as.factor(classification), reference = as.factor(test_set$user_type), positive = '1')
+```
+
+
+As the output shows, the model has good accuracy and sensitivity but very low specificity. This is due to how unbalanced our data is. An overwhelming majority of trips are done by people designated as a `Subscriber`.
+
+
+To account for this, we are going to over-sample `Customer` class and re-run our model to see if we can achieve more equity between specificity and sensitivity. 
+
+```{r}
+set.seed(260)
+data_balanced_over <- ovun.sample(user_type ~ ., data = train_set, method = "both",N = 239590)$data
+table(train_set$user_type)
+table(data_balanced_over$user_type)
+```
+
+```{r}
+model_adj <- glm(user_type ~ gender + day_type + suburb + age + winter , data = data_balanced_over, family = binomial)
+
+summary(model_adj)
+
+predicted_adj<- predict(model_adj, newdata = test_set, type = "response" )
+
+classification_adj <- ifelse(predicted_adj  > 0.5, 1, 0)
+confusionMatrix(data = as.factor(classification_adj), reference = as.factor(test_set$user_type), positive = '1')
+```
+
+While accuracy and sensitivity took a hit, specificity increased a lot in the model trained with oversampled data. Thus, this model might be more preferable if we care more about equity between the two classes. Though if the company cares more about predicting subscribers, then the original model would better as it has a higher sensitivity. 
+
+# ROC Graphs
+
+```{r}
+regular_roc <- roc(as.factor(test_set$user_type), predicted)
+
+sample_adjusted_roc <- roc(as.factor(test_set$user_type), predicted_adj)
+
+
+ggroc(list("Regular Data" = regular_roc,
+           "Oversampled Data" = sample_adjusted_roc), legacy.axis = TRUE, aes = c("linetype", "color")) +
+  labs(title = "ROC Comparison Graphs",
+       x = "Sensitivity",
+       y = "Specificity") +
+  scale_color_manual(values = c("Regular Data" = "#36A3E2", "Oversampled Data" =  "#213272")
+    ,labels = c("Regular Data","Oversampled Data"))  +
+  scale_linetype_manual(
+                         values = c("solid",  "dotdash")) +
+  theme(legend.title = element_blank()) + 
+  geom_segment(aes(x = 1, xend = 0, y = 0, yend = 1), color = "black", linetype = "dashed")
+```
+
+```{r}
+auc(regular_roc)
+
+auc(sample_adjusted_roc)
+```
+
+
+```{r}
+regular <- data.frame(cbind(classification, test_set$user_type)) %>% 
+  rename(acutal = V2)
+
+predictions <- regular$classification
+actual <- regular$acutal
+
+pr_curve = pr.curve(scores.class0 = predictions[actual == 1],  scores.class1 = predictions[actual == 0], curve = T)
+plot(pr_curve, main = "PRROC library")
+```
+
+```{r}
+adjusted <- data.frame(cbind(classification_adj, test_set$user_type)) %>% 
+  rename(acutal = V2)
+
+predictions_adj <- adjusted$classification_adj
+actual_adj <- adjusted$acutal
+
+pr_curve = pr.curve(scores.class0 = predictions_adj[actual_adj == 1],  scores.class1 = predictions_adj[actual_adj == 0], curve = T)
+plot(pr_curve, main = "PRROC library")
+```
+
+From the above curves we can see that the adjusted model has a slightly higher AOC related to precision/recall and sensitivity/specificity.
