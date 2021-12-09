@@ -1,0 +1,133 @@
+---
+title: "NYC Citi Bike"
+author: "Team: Bhawesh Kumar, Ian Lo, Amber Nigam, James Wen, QJ Yap, Elaine Ye"
+date: "12/12/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Overview and Motivation
+
+Our project is based on bike trip data provided by Citi Bike, the nation's largest bike share program that primarily serves New York City. As residents of Boston, our team members have many options when it comes to choosing a method of transportation to get around the city, and one member in particular regularly bikes to and from the HSPH Longwood campus as her daily commute. Given the current climate crisis, we selected this topic because we recognize the rising importance of sustainable transportation and wanted to see if we could glean insights from New York City cyclists. Furthermore, in our transition from pre-pandemic life to the current state in 2021, there's been a visible increase in the number of bikes on the road, and it'd be interesting to see if the data supports what we've observed. Luckily, Citi Bike has collected an abundance of data on its bikes since 2013. In our project, we leveraged that dataset and secondary sources to run a wide variety of analyses including the impacts of weather, COVID-19, geospatial analysis, and socioeconomic accessibility.
+
+# Related Work
+
+(has anyone done work related to this???)
+
+
+# Initial Questions
+
+After selecting our dataset, our group came up with the following ideas for our initial project proposal. A key objective early on was to identify potential outcomes that could be predicted using the machine learning models covered in this course and others.
+
+* Understand whether ridership increased/decreased because of the pandemic by comparing the number of trips pre- and post-COVID (2019 vs. 2020) 
+* Examine which characteristics are predictive of membership status
+* Investigate the effect of weather/seasonality/holidays on bike ridership
+* Can we identify factors that could predict monthly/quarterly revenue 
+* Examine most popular stations/bike routes via geographical visualizations
+
+Over the course of the project, we decided that revenue prediction was not the best fit since the data did not include cost per ride. While conducting exploratory analysis, we felt it would be more interesting to incorporate the NYC boroughs and present an overall customer profile.
+
+Additional questions:
+
+* Understand if bike station accessibility varied by community - through factors like local median income level (according to external census data)
+* What's the overall customer profile of Citi Bike riders? (age, gender, etc.)
+
+
+# Data
+
+### Citi Bike Data
+
+The trip data was downloaded from the Citi Bike website, with each monthly CSV file containing 1 to 2 million rows of data capturing every bike trip from their 1300+ stations. To make sure this file can be compiled in a reasonable time, the code to clean and aggregate the data is saved separately under "Data Processing.rmd". Instead of using the raw data as-is (~19mil rows), we've created several aggregated/sampled files from the raw data for use in our various analyses. The original data set included the following fields:
+
+* Trip Duration (in seconds)
+* Start Time and Date
+* Stop Time and Date
+* Start Station Name
+* End Station Name
+* Station ID
+* Station Lat/Long
+* Bike ID
+* User Type (Customer = 24-hour pass or 3-day pass user; Subscriber = Annual Member)
+* Gender (Zero=unknown; 1=male; 2=female)
+* Year of Birth
+
+[Link to data](https://s3.amazonaws.com/tripdata/index.html)
+
+```{r, message=FALSE,warning=FALSE}
+library(tidyverse)
+library(lubridate)
+library(knitr)
+library(gridExtra)
+library(padr)
+library(spatialrisk)
+library(zipcodeR)
+library(scales)
+library(viridis)
+```
+
+```{r, message=FALSE}
+# Citi Bike Trips summarized by day
+# https://ride.citibikenyc.com/system-data
+bikedata_summarized <- read_csv("Data/bikedata_summarized.csv") #2020
+bikedata_summarized_2019 <- read_csv("Data/bikedata_summarized_2019.csv") #2019
+
+# Citi Bike Trips sampled (1% of data)
+bikedata_sampled_1percent <- read_csv("Data/bikedata_sampled_1percent.csv") #2020
+
+kable(head(bikedata_sampled_1percent, n=5))
+```
+
+
+### Weather Data
+
+We were able to obtain daily climate data for 2019-2020 from the National Centers for Environmental Information. The website allows you to submit requests for datasets with the parameters you provide (ie date range, attributes of interest) and their automated system then emails you the data as a CSV attachment. We felt that weather data would enhance our analyses on how many bike trips were taken each day given that temperature and rain are clearly factors in whether people choose to bike outdoors.
+
+[Link to data](https://www.ncdc.noaa.gov/cdo-web/datasets/GHCND/locations/ZIP:10023/detail)
+
+```{r,message=FALSE}
+# NYC Weather Data: New York, NY 10023 https://www.ncdc.noaa.gov/cdo-web/datasets/GHCND/locations/ZIP:10023/detail
+weatherdata <- read_csv("Data/NYCWeather.csv") #2020
+weatherdata2019 <- read_csv("Data/NYCWeather2019.csv") #2019
+kable(head(weatherdata, n=1))
+```
+
+![](Data/Weather Data Dictionary.png){width=50%}
+
+### COVID-19 Case Data
+
+We chose to analyze 2020 data because we would be able to examine the impact of COVID-19 on ridership. Due to social distancing measures and the relative safety of outdoor activity, we have seen more people opting to bike, both as recreation and as a means of transportation. NYC COVID-19 case data was provided by the NYC Department of Health and Mental Hygiene on their publicly available Github repository.
+
+[Link to data](https://github.com/nychealth/coronavirus-data/tree/master/trends)
+
+```{r, message=FALSE}
+# NYC Covid Data: https://github.com/nychealth/coronavirus-data/tree/master/trends
+coviddata <- read_csv("Data/COVIDcasedata.csv")
+# change date from string to date format
+coviddata <- coviddata %>% mutate(date_of_interest = mdy(date_of_interest))
+
+kable(coviddata %>% select(date_of_interest,
+                           CASE_COUNT,
+                           CASE_COUNT_7DAY_AVG) %>%
+        head(n=5)
+      )
+```
+
+
+### NYC Subway Data
+
+For some of our analyses, we join NYC subway data to find the subway stops closest to Citi Bike stations using lat/long coordinates.
+
+[Link to data](https://data.cityofnewyork.us/Transportation/Subway-Stations/arq3-7z49)
+
+```{r, message=FALSE}
+subway_sta <- read_csv("Data/DOITT_SUBWAY_STATION_01_13SEPT2010.csv")
+kable(subway_sta %>% select(NAME, the_geom, LINE) %>% head(n=5))
+```
+
+
+
+
