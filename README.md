@@ -10,3 +10,4 @@ File Order
 Shiny App instructions
 1) Download the entire folder
 2) Unzip bikedata_sampled_1percent.csv into the folder
+3) Run App.R
