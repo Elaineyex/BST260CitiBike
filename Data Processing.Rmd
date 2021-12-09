@@ -1,6 +1,6 @@
 ---
 title: "Data Processing"
-author: "Ian Lo"
+author: "Ian Lo, Elaine Ye"
 date: "12/8/2021"
 output: html_document
 ---
