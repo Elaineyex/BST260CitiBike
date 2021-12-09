@@ -1,0 +1,113 @@
+---
+title: "EDA_QJ"
+author: "QJ"
+date: "11/30/2021"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+load("bike_join.RData")
+
+# NYC Covid Data: https://github.com/nychealth/coronavirus-data/tree/master/trends
+coviddata <- read_csv("COVIDcasedata.csv")
+
+# NYC Weather Data: New York, NY 10023 https://www.ncdc.noaa.gov/cdo-web/datasets/GHCND/locations/ZIP:10023/detail
+weatherdata <- read_csv("NYCWeather.csv")
+
+```
+
+## Data Clean-up
+```{r}
+#removing observations with more than 2 hours
+bike_join_filter = bike_join[!bike_join$trip_min > 120,]
+
+library(lubridate)
+#adding COVID information to the data
+
+coviddata$Date =  mdy(coviddata$date_of_interest)
+coviddata_prejoin = coviddata %>% select(Date, CASE_COUNT_7DAY_AVG)
+
+bikedata_weather_covid = bike_join_filter %>% left_join(coviddata_prejoin, by = c("trip_date" = "Date"))
+```
+Before starting our exploratory data analysis, we first subset the dataset to remove trips that took more than 2 hours. This is because it is probably unrealistic to expect realistic results for extremely large trip durations (sometimes durations amounting to multiple days can be attributed to staff returning abandoned bicycles). Next we will join in weather data (previously done before reading in the data) as well as COVID-19 data, which may provide us with some additional insights into trip duration.
+
+```{r}
+#sampling data stratified by trip_date
+set.seed(260)
+bikedata_weather_covid_sample = bikedata_weather_covid %>% group_by(trip_date) %>% sample_frac(0.01) %>% ungroup(trip_date)
+```
+
+```{r}
+#correlation plot
+library(corrplot)
+#names(bikedata_weather_covid_sample)
+
+bikedata_weather_covid_sample_num = select_if(bikedata_weather_covid_sample, is.numeric) %>% select(-start_station_id, -end_station_id, -start_station_latitude, -start_station_longitude, -end_station_longitude, -end_station_latitude, -bike_id, -trip_duration) 
+
+bikedata_weather_covid_sample_num %>% cor(use="pairwise.complete.obs") %>% corrplot(method = 'color')
+
+sort(abs(cor(bikedata_weather_covid_sample_num,use="pairwise.complete.obs")[13,]), decreasing = TRUE)
+```
+Our dataset has 19.5 million observations - far too many observations thus in the interest of computational efficiency, we decided to only sample 1% of the data, leaving us ~193k observations with 29 variables. After conducting a correlation plot of the numeric variables, we found that certain predictors such as temperature (both maximum and minimum), gender, median household income and average wind speed appear to be more correlated to trip duration than others.
+
+```{r}
+summary(bikedata_weather_covid$trip_duration/60)
+
+bikedata_weather_covid_sample %>% 
+  ggplot(aes(trip_duration/60, fill = "#379DDA")) +
+  geom_histogram(color = 'black') +
+  #xlim(0, 170) +
+  ylab('Counts') +
+  xlab('Trip Duration (Minutes)') +
+  ggtitle('Histogram of Trip Duration') +
+  theme_light() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.x = element_blank()) +
+  theme(legend.position = "none")
+```
+As expected, trip duration appears to be heavily right skewed, with most of the observations  appearing to take 15 minutes or less.
+
+```{r}
+bikedata_weather_covid_sample %>% 
+  ggplot(aes(x=PRCP, y=trip_duration/60, color = "#379DDA")) +
+  geom_point(alpha = 0.5) +
+  ylab('Trip Duration') +
+  xlab('Precipitation') +
+  #ylim(0,10000) +
+  ggtitle('Precipitation VS Trip Duration') +
+  theme_light() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.x = element_blank()) +
+  theme(legend.position = "none")
+```
+The scatterplot of trip duration against precipitation  appears to show a generally decreasing pattern of trip duration as precipitation increases. However, we have far more data points for lower values of precipitation, which may partially explain the larger range of values of trip duration for lower precipitation.
+
+```{r}
+bikedata_weather_covid_sample %>% 
+  ggplot(aes(x=AWND, y=trip_duration/60, color = "#379DDA")) +
+  geom_point(alpha = 0.5) +
+  ylab('Trip Duration') +
+  xlab('Avg Wind') +
+  ggtitle('Avg Wind VS Trip Duration') +
+  theme_light() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.x = element_blank()) +
+  theme(legend.position = "none")
+```
+The scatterplot of trip duration against average wind appears to be generally uncorrelated. 
+
+```{r}
+bikedata_weather_covid_sample %>% 
+  ggplot(aes(x=trip_date, y=trip_duration/60, color = "#379DDA")) +
+  geom_point(alpha = 0.5) +
+  ylab('Trip Duration') +
+  xlab('Date') +
+  ggtitle('Trip Duration over Time') +
+  theme_light() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.x = element_blank()) +
+  theme(legend.position = "none")
+```
+The scatterplot of trip duration against date appears to show that longer trips generally appear to be taken in the middle of the year, in the summer months between May and August. This seems to be a result that makes sense, given how it is probably harder to take longer trips in more adverse weather conditions.
+

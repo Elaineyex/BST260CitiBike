@@ -1,0 +1,95 @@
+---
+title: "Modeling_QJ"
+author: "QJ"
+date: "12/9/2021"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+load("bike_join.RData")
+
+# NYC Covid Data: https://github.com/nychealth/coronavirus-data/tree/master/trends
+coviddata <- read_csv("COVIDcasedata.csv")
+
+# NYC Weather Data: New York, NY 10023 https://www.ncdc.noaa.gov/cdo-web/datasets/GHCND/locations/ZIP:10023/detail
+weatherdata <- read_csv("NYCWeather.csv")
+
+```
+
+## Data Clean-up
+```{r}
+#removing observations with more than 2 hours
+bike_join_filter = bike_join[!bike_join$trip_min > 120,]
+
+library(lubridate)
+#adding COVID information to the data
+
+coviddata$Date =  mdy(coviddata$date_of_interest)
+coviddata_prejoin = coviddata %>% select(Date, CASE_COUNT_7DAY_AVG)
+
+bikedata_weather_covid = bike_join_filter %>% left_join(coviddata_prejoin, by = c("trip_date" = "Date"))
+```
+
+```{r}
+#sampling data stratified by trip_date
+set.seed(260)
+bikedata_weather_covid_sample = bikedata_weather_covid %>% group_by(trip_date) %>% sample_frac(0.01) %>% ungroup(trip_date)
+```
+
+Modeling
+```{r}
+#removing variables, fixing missing data for COVID
+bikedata_weather_covid_sample_model = bikedata_weather_covid_sample %>% select(-trip_duration, -start_time, -stop_time, -start_station_id, -end_station_id, -bike_id, -birth_year, -city, -postcode, -start_station_latitude, -start_station_longitude, -end_station_latitude, -end_station_longitude, -subway_name, -county, -suburb, -major_city, -end_station_name, -start_station_name, -SNWD, -SNOW)
+
+bikedata_weather_covid_sample_model$CASE_COUNT_7DAY_AVG[is.na(bikedata_weather_covid_sample_model$CASE_COUNT_7DAY_AVG)] = 0
+
+bikedata_weather_covid_sample_model %>%
+  summarise_all(funs(sum(is.na(.))))
+
+bikedata_weather_covid_sample_model = na.omit(bikedata_weather_covid_sample_model)
+```
+
+```{r}
+#fitting RF predictor
+library(randomForest)
+set.seed(260)
+index = sample(nrow(bikedata_weather_covid_sample_model), 0.7 * nrow(bikedata_weather_covid_sample_model))
+train = bikedata_weather_covid_sample_model[index,]
+test = bikedata_weather_covid_sample_model[-index,]
+
+rf_fit <- randomForest(trip_min ~ ., train)
+```
+
+```{r}
+#predicting RF on data
+rf_preds <- predict(rf_fit, newdata = test)
+
+MSE = mean((rf_preds - test$trip_min)^2)
+RMSE = sqrt(MSE)
+RMSE #test RMSE of 13.57609
+
+rf_preds <- predict(rf_fit, newdata = train)
+
+MSE = mean((rf_preds - train$trip_min)^2)
+RMSE = sqrt(MSE)
+RMSE # train RMSE of 7.530114
+
+importances = data.frame(rf_fit$importance)
+importances = cbind(Features = rownames(importances), importances)
+rownames(importances) = 1:nrow(importances)
+
+importances %>%
+  mutate(Feature = fct_reorder(Features, IncNodePurity)) %>%
+  ggplot(aes(x = IncNodePurity, y=Feature)) +
+  geom_col(fill = "#213272") +
+  labs(title = "Feature Importance of Random Forest for Prediction of Trip Duration",
+       x = "Node Purity",
+       y = "Features") +
+  theme_light() +
+   theme(panel.grid.minor = element_blank(),
+        panel.grid.major.x = element_blank()) 
+```
+Before fitting a random forest model to obtain a regression model of trip duration, we first make sure to exclude certain variables from the data for the purposes of computational complexity as well as variables that would not add additional information to the model (eg. bike id). After splitting the data into train and test sets, our random forest model achieved a test Root Mean Squared Error (RMSE) of 13.58. Comparing the model RMSE from the train set (which achieved RMSE of 7.53), we observed some performance drop off, which hints at some level of over-fitting even though we had previously reduced the number of variables.
+
+Looking at the variable importance plot of the model based on Node Purity, we found that the variable `distance_m` (representing distance to the closest subway station) proved to be by far the variable with the most predictive power. One reason why this is the case could be that people tend to bike from less convenient places to access public transport, so distance to the closest subway station would strongly affect trip duration. Other important predictors included `age`, `population_density` and `median_household_income`, all of which makes intuitive sense. Younger people would most likely be more comfortable with the fitness required with riding a bike for longer durations, while less affluent people would require using the bike to get around as opposed to a car. In addition, areas with high population density would most likely result in more crowded streets and hence lower trip durations.
