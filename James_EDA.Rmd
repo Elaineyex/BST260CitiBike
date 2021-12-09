@@ -1,0 +1,254 @@
+---
+title: "260 EDA and Analysis"
+author: "James Wen"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Background
+
+The purpose of this file is to create an analysis on the Citi Bike data. Specifically, this analysis will attempt to utlize logisitc regression to predict if a trip was made by a `Customer` or a `Subscriber`. `Customer` is defined as someone who rents a bike on an ad hoc basis or someone with a three day pass. A `Subscriber` is someone who has a membership with Citi Bike.
+
+
+
+# Load Data and Create Variables
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(lubridate)
+library(splitstackshape)
+library(janitor)
+library(caret)
+library(ROSE)
+library(pROC)
+library(PRROC)
+# setwd("~/Desktop/21F/BST_260/Project/Data")
+set.seed(260)
+
+# bikedata <- list.files(pattern = "*-citibike-tripdata.csv") %>% 
+#   map_df(~read_csv(.))
+#setwd("~/Desktop/21F/BST_260/Project")
+#bikedata <- readRDS("data.RDS")
+
+# bikedata_1 <- sample_frac(bikedata, 0.01) 
+
+# write.csv(bikedata_1, "sampled_data.csv")
+
+# bikedata_1 <- read.csv("bikedata_sampled_1percent.csv") 
+
+# load("bike_join.RData")
+#sample_size <- nrow(bike_join) %/% 100 
+#out <- stratified(bike_join, c("start_time"), sample_size)
+
+#bikedata_1 <- sample_frac(bike_join, 0.01) 
+
+# write.csv(bikedata_1, "geo_sample.csv")
+
+bikedata_1 <- read.csv("geo_sample.csv")
+
+
+
+
+# geo <- bikedata_1 %>% 
+#   select(suburb, major_city) %>% 
+#   mutate(suburb_major_ciy = paste(suburb,major_city, sep = ","))
+
+
+bikedata_2 <- bikedata_1 %>%
+  mutate(day_of_week = wday(start_time, label = TRUE, abbr = TRUE)) %>% 
+  # 1 = weekend, 0 = weekday
+  mutate(day_type = ifelse(day_of_week %in% c("Sat", "Sun"), 1,0)) %>% 
+  #mutate(age = 2020 - birth_year) %>% 
+  #mutate(trip_date = ymd(trip_date)) %>% 
+  mutate(month = month(start_time)) %>% 
+  mutate(age_cat = ifelse(age < 20, "Under 20",
+                          ifelse(age < 30, "20s",
+                                 ifelse(age < 40, "30s",
+                                        ifelse(age < 50, "40s",
+                                               ifelse( age < 60, "50s",
+                                                       ifelse(age < 70, "60s",
+                                                              ifelse(age < 80, "70s", "80+")))))))) %>% 
+  mutate(gender = as.factor(gender)) %>% 
+  mutate(user_type = factor(user_type, levels = c("Customer", "Subscriber"))) %>% 
+  mutate(season = ifelse(month %in% c(3,4,5), "Spring",
+                         ifelse(month %in% c(6,7,8), "Summer",
+                                ifelse(month %in% c(9,10,11), "Fall", "Winter")))) %>% 
+  mutate(winter = ifelse(season == "Winter", 1, 0))
+  
+```
+
+# Histograms
+
+The following histograms plot `Customer` vs `Subscriber` trips based on certain key predictors that will later be used to create the logistic regression models. From all of the plots, we can see that `Subscriber` is over represented in every cut. 
+
+
+```{r}
+ggplot(data = bikedata_2, aes(x = as.factor(user_type))) +
+  #geom_histogram(stat="percentage") +
+  geom_bar(aes(y = (..count..)/sum(..count..) * 100, fill = user_type)) + 
+  labs(title = "Percent of Bike Trips by User Type",
+       x = "User Type", 
+       y = "Percent",
+       fill = "User") +
+  scale_fill_manual(values=c("#36A3E2", "#213272")) +
+  theme_light() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.x = element_blank())
+setwd("~/Desktop/21F/BST_260/Project")
+#ggsave(filename = "general_hist.jpg", dpi=300)
+```
+
+```{r}
+dat <- tabyl(bikedata_2, gender, user_type) %>%
+  adorn_percentages("row") 
+dat <- as.data.frame(dat) %>%
+  gather(user_type, percentage, Customer:Subscriber)
+
+gender_list <- c("Unknown","Male","Female")
+names(gender_list) <- c("0", "1", "2")
+
+ggplot(data = dat, aes(y = percentage * 100, x = user_type, fill = user_type)) +
+  geom_col() +
+  labs(title = "Percent of Bike Trips by User Type, Gender",
+       x = "User Type", 
+       y = "Percent",
+       fill = "User") +
+  scale_fill_manual(values=c("#36A3E2", "#213272")) +
+  theme_light() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.x = element_blank()) +
+  facet_wrap(~gender, labeller=labeller(gender = gender_list))
+
+#ggsave(filename = "gender_user.jpg")
+```
+
+```{r}
+
+month_list <- c("January","February","March", "April", "May", "June", "July",
+                "August", "September", "October", "November", "December")
+names(month_list) <- c("1", "2", "3", "4", "5", "6", 
+                       "7", "8", "9", "10", "11", "12")
+dat <- tabyl(bikedata_2, month, user_type) %>%
+  adorn_percentages("row") 
+dat <- as.data.frame(dat) %>%
+  gather(user_type, percentage, Customer:Subscriber)
+
+ggplot(data = dat, aes(y = percentage * 100, x = user_type, fill = user_type)) +
+  geom_col() +
+  labs(title = "Percent of Bike Trips by User Type, Month",
+       x = "User Type", 
+       y = "Percent",
+       fill = "User") +
+  scale_fill_manual(values=c("#36A3E2", "#213272")) +
+  theme_light() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.x = element_blank(),
+        axis.text.x = element_text(size = 7)) +
+  facet_wrap(~month, labeller=labeller(month = month_list))
+
+#ggsave(filename = "month_user.jpg")
+``` 
+
+```{r}
+
+dat <- tabyl(bikedata_2, suburb, user_type) %>%
+  adorn_percentages("row") 
+dat <- as.data.frame(dat) %>%
+  gather(user_type, percentage, Customer:Subscriber)  %>% 
+  filter(!is.na(suburb))
+
+ggplot(data = dat, aes(y = percentage * 100, x = user_type, fill = user_type)) +
+  geom_col() +
+  labs(title = "Percent of Bike Trips by User Type, Borough",
+       x = "User Type", 
+       y = "Percent",
+       fill = "User") +
+  scale_fill_manual(values=c("#36A3E2", "#213272")) +
+  theme_light() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.x = element_blank(),
+        axis.text.x = element_text(size = 7)) +
+  facet_wrap(~suburb)
+
+
+
+# ggsave(filename = "borough_user.jpg")
+```
+
+
+```{r}
+
+dat <- tabyl(bikedata_2, age_cat, user_type) %>%
+  adorn_percentages("row") 
+dat <- as.data.frame(dat) %>%
+  gather(user_type, percentage, Customer:Subscriber)  
+
+ggplot(data = dat, aes(y = percentage * 100, x = user_type, fill = user_type)) +
+  geom_col() +
+  labs(title = "Percent of Bike Trips by User Type, Age",
+       x = "User Type", 
+       y = "Percent",
+       fill = "User") +
+  scale_fill_manual(values=c("#36A3E2", "#213272")) +
+  theme_light() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.x = element_blank(),
+        axis.text.x = element_text(size = 7)) +
+  facet_wrap(~age_cat)
+
+
+
+# ggsave(filename = "age_user.jpg")
+```
+
+```{r}
+dat <- tabyl(bikedata_2, season, user_type) %>%
+  adorn_percentages("row") 
+dat <- as.data.frame(dat) %>%
+  gather(user_type, percentage, Customer:Subscriber)  
+
+ggplot(data = dat, aes(y = percentage * 100, x = user_type, fill = user_type)) +
+  geom_col() +
+  labs(title = "Percent of Bike Trips by User Type, Season",
+       x = "User Type", 
+       y = "Percent",
+       fill = "User") +
+  scale_fill_manual(values=c("#36A3E2", "#213272")) +
+  theme_light() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.x = element_blank(),
+        axis.text.x = element_text(size = 7)) +
+  facet_wrap(~season)
+
+
+
+#ggsave(filename = "age_user.jpg")
+```
+
+```{r}
+weekend_list <- c("Weekday", "Weekend")
+names(weekend_list) <- c("0", "1")
+dat <- tabyl(bikedata_2, day_type, user_type) %>%
+  adorn_percentages("row") 
+dat <- as.data.frame(dat) %>%
+  gather(user_type, percentage, Customer:Subscriber)
+
+ggplot(data = dat, aes(y = percentage * 100, x = user_type, fill = user_type)) +
+  geom_col() +
+  labs(title = "Percent of Bike Trips by User Type, Weekend vs. Weekday",
+       x = "User Type", 
+       y = "Percent",
+       fill = "User") +
+  scale_fill_manual(values=c("#36A3E2", "#213272")) +
+  theme_light() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.x = element_blank(),
+        axis.text.x = element_text(size = 7)) +
+  facet_wrap(~day_type, labeller=labeller(day_type = weekend_list))
+
+# ggsave(filename = "day_type_user.jpg")
+```
+
