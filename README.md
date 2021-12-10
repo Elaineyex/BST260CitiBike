@@ -4,7 +4,7 @@ File Order
 1) BST260CitiBike.html
 2) Data Processing.rmd 
 3) EDA_.html files
-4) Model_.html files
+4) Modeling_.html files
 5) Shiny_ folders
 6) Data.rar (for reference)
 
