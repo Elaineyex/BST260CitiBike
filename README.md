@@ -16,3 +16,8 @@ Shiny App instructions
 ```EDA_Ye.rmd``` and ```Modeling_Ye.rmd``` include visualization of bike trips by county and XGboost model to predict user type of Citi Bike.
 1) Download ```bike_join.Rdata``` from Google Drive https://drive.google.com/file/d/1K-Jc_kls_PFghMPSG0XHh72MNbAFngJF/view?usp=sharing
 2) Run rmd 
+
+
+```James_EDA.rmd``` and ```James_Model.rmd``` include visualizations and modeling related to User Type. This section of the report utilizes logistic regression to make predictions on user type per trip. 
+1) Download ```bike_join.Rdata``` from Google Drive https://drive.google.com/file/d/1K-Jc_kls_PFghMPSG0XHh72MNbAFngJF/view?usp=sharing
+2) Run rmd 
