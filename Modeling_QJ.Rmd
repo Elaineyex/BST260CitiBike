@@ -83,13 +83,14 @@ importances %>%
   mutate(Feature = fct_reorder(Features, IncNodePurity)) %>%
   ggplot(aes(x = IncNodePurity, y=Feature)) +
   geom_col(fill = "#213272") +
-  labs(title = "Feature Importance of Random Forest for Prediction of Trip Duration",
+  labs(title = "Feature Importance in Predicting Trip Duration",
        x = "Node Purity",
        y = "Features") +
   theme_light() +
    theme(panel.grid.minor = element_blank(),
         panel.grid.major.x = element_blank()) 
 ```
+  
 Before fitting a random forest model to obtain a regression model of trip duration, we first make sure to exclude certain variables from the data for the purposes of computational complexity as well as variables that would not add additional information to the model (eg. bike id). After splitting the data into train and test sets, our random forest model achieved a test Root Mean Squared Error (RMSE) of 13.58. Comparing the model RMSE from the train set (which achieved RMSE of 7.53), we observed some performance drop off, which hints at some level of over-fitting even though we had previously reduced the number of variables.
 
 Looking at the variable importance plot of the model based on Node Purity, we found that the variable `distance_m` (representing distance to the closest subway station) proved to be by far the variable with the most predictive power. One reason why this is the case could be that people tend to bike from less convenient places to access public transport, so distance to the closest subway station would strongly affect trip duration. Other important predictors included `age`, `population_density` and `median_household_income`, all of which makes intuitive sense. Younger people would most likely be more comfortable with the fitness required with riding a bike for longer durations, while less affluent people would require using the bike to get around as opposed to a car. In addition, areas with high population density would most likely result in more crowded streets and hence lower trip durations.
