@@ -9,9 +9,10 @@
 6) ```Data.rar``` (for reference)
 
 ### Shiny App instructions (Analysis by Ian Lo and Bhawesh Kumar) 
-1) Download the entire folder
-2) Unzip ```bikedata_sampled_1percent.csv``` into the folder
+1) Download the entire ```Shiny_.zip``` folder
+2) Unzip folder locally
 3) Run ```App.R```
+4) Links are also here: https://ianlo.shinyapps.io/shiny_ian/, https://ianlo.shinyapps.io/shiny_bhawesh/
 
 ### EDA and Modeling files instructions 
 #### Analysis by Elaine Ye 
