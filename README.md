@@ -12,3 +12,7 @@ Shiny App instructions
 1) Download the entire folder
 2) Unzip bikedata_sampled_1percent.csv into the folder
 3) Run App.R
+
+```EDA_Ye.rmd``` and ```Modeling_Ye.rmd``` include visualization of bike trips by county and XGboost model to predict user type of Citi Bike.
+1) Download bike_join.data from Google Drive https://drive.google.com/file/d/1K-Jc_kls_PFghMPSG0XHh72MNbAFngJF/view?usp=sharing
+2) Run rmd 
