@@ -10,9 +10,9 @@
 Most of the data are hosted in the OneDrive Folder: https://hu-my.sharepoint.com/:f:/g/personal/elaine_ye_hsph_harvard_edu/Enp4cHMie0NDigAXkRM7OuUBXUabQfooYYBa3ouYNe_cpA?e=j9ntU8
 
 ## Shiny App instructions
-1) Download the entire folder
-2) Unzip ```bikedata_sampled_1percent.csv``` into the folder
-3) Run ```App.R```
+1) Download the ```Shiny_.zip``` folder. Unzip locally.
+2) Run ```App.R```
+3) You can also access the links here: https://ianlo.shinyapps.io/shiny_ian/, https://bhaweshk.shinyapps.io/Shiny_Bhawesh/
 
 ## EDA and Modeling files instructions 
 ```EDA_Ye.rmd``` and ```Modeling_Ye.rmd``` include visualization of bike trips by county and XGboost model to predict user type of Citi Bike.
