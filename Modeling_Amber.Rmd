@@ -116,13 +116,6 @@ mts <- ts(select(head(bikedata, -5) %>% group_by(trip_date)  %>% dplyr::summaris
            start = c(2020, 10, 1),
            frequency = 7)
 
-#triple exponential - including trend, and seasonal components
-fit <- HoltWinters(mts)
-plot(forecast(fit, 5), xlab ="Time",
-ylab ="Daily trips",
-main ="Triple Exponential Daily trips forecast", col.main ="darkgreen", xlim=c(2020, 2020.25))
-
-
 # predictive accuracy
 library(forecast)
 #accuracy(fit)
