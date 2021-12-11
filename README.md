@@ -15,17 +15,17 @@
 
 ## EDA and Modeling files instructions 
 ```EDA_Ye.rmd``` and ```Modeling_Ye.rmd``` include visualization of bike trips by county and XGboost model to predict user type of Citi Bike.
-1) Download ```bike_join.Rdata``` from Google Drive https://drive.google.com/file/d/1K-Jc_kls_PFghMPSG0XHh72MNbAFngJF/view?usp=sharing
+1) Download ```bike_join.Rdata``` from the OneDrive
 2) Run rmd files
 
 ```James_EDA.rmd``` and ```James_Model.rmd``` include visualizations and modeling related to User Type. This section of the report utilizes logistic regression to make predictions on user type per trip. 
-1) Download ```geo_sample.csv``` from Google Drive https://hu-my.sharepoint.com/:x:/g/personal/elaine_ye_hsph_harvard_edu/EWDqTV9U33VHms8Yv5l813MBpkHhYXD34VL4N5iMQCNteQ?e=3BVhQE
+1) Download ```geo_sample.csv``` from the OneDrive
 2) Run rmd files
 
 ```EDA_QJ.rmd``` and ```Modeling_QJ.rmd``` include visualizations and modeling related to Trip Duration. This section of the report utilizes Random Forest to make predictions on trip duration. 
-1) Download ```bike_join.Rdata``` from Google Drive https://drive.google.com/file/d/1K-Jc_kls_PFghMPSG0XHh72MNbAFngJF/view?usp=sharing
-2) Download ```COVIDcasedata.csv``` from Google Drive https://drive.google.com/file/d/1fp0pxZVh7rIYn13IawCbuFKgWW41Lvs-/view?usp=sharing
-3) Download ```NYCWeather.csv``` from Google Drive https://drive.google.com/file/d/10DOJLSRGz3UsnF9V4G0SODtUyrdiZcR-/view?usp=sharing
+1) Download ```bike_join.Rdata``` from the OneDrive
+2) Download ```COVIDcasedata.csv``` from the OneDrive
+3) Download ```NYCWeather.csv``` from the OneDrive
 4) Run rmd files (warning: Modeling_QJ.rmd takes a long time! If encountering a vector memory exhausted error, follow the following steps:
   * Open terminal
   * cd ~
