@@ -6,7 +6,6 @@
 3) ```EDA_.html``` files
 4) ```Modeling_.html``` files
 5) ```Shiny_``` folders
-6) ```Data.rar``` (for reference)
 
 Most of the data are hosted in the OneDrive Folder: https://hu-my.sharepoint.com/:f:/g/personal/elaine_ye_hsph_harvard_edu/Enp4cHMie0NDigAXkRM7OuUBXUabQfooYYBa3ouYNe_cpA?e=j9ntU8
 
