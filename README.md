@@ -10,7 +10,7 @@
 Most of the data are hosted in the OneDrive Folder: https://hu-my.sharepoint.com/:f:/g/personal/elaine_ye_hsph_harvard_edu/Enp4cHMie0NDigAXkRM7OuUBXUabQfooYYBa3ouYNe_cpA?e=j9ntU8
 
 ## Shiny App instructions
-1) Download the ```Shiny_.zip``` folder. Unzip locally.
+1) Download the two ```Shiny_.zip``` folders. Unzip locally.
 2) Run ```App.R```
 3) You can also access the links here: https://ianlo.shinyapps.io/shiny_ian/, https://bhaweshk.shinyapps.io/Shiny_Bhawesh/
 
