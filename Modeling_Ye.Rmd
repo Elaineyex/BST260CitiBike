@@ -1,0 +1,192 @@
+---
+title: "Modeling_Ye"
+author: "Elaine Ye"
+date: "12/07/2021"
+output: html_document
+---
+
+There are two types of Citi Bike users: one is **Subscribers** who purchase annual membership, and the other is **Customers** who purchase 24-hour pass or 3-day pass. In this analysis, I am interested in understanding what factors predict a trip is initiated by a Subscriber or Customer. To investigate this problem, I use XGboost model to predict user type with variables of gender, age, median household income of the neighborhood where a bike is located, the distance to the nearest subway in meters, the length of trip duration in minutes, day of week, county, and winter. 
+
+
+```{r message=FALSE, warning=FALSE}
+library(lubridate)
+library(tidyverse)
+library(xgboost)
+library(Matrix)
+library(caret)
+library(ROSE)
+load("bike_join.RData")
+set.seed(260)
+#only take 10% data for modeling due to limited computational power 
+bike_sub <- bike_join%>%
+  #filter trip min within 120 min
+  filter(trip_min < 120) %>%
+  group_by(trip_date) %>% sample_frac(0.01) %>%
+  filter(gender != 0)
+#actual proportion of subscribers and customers 
+prop.table(table(bike_sub$user_type))
+```
+
+```{r}
+bike_mod <- bike_sub %>%
+  ungroup() %>%
+  #create day of week variable 
+  mutate(wday = ifelse(day_of_week %in% c("Mon", "Tue", "Wed", "Thu",
+                                          "Fri"), 0, 1)) %>%
+  mutate(wday = as.factor(wday)) %>%
+   mutate(month = month(start_time)) %>%
+    mutate(winter = ifelse(month %in% c(12,1,2), 1, 0))  %>%
+  mutate(user_type = ifelse(user_type == "Subscriber", 1, 0)) %>%
+  select(c(user_type, gender, age, median_household_income, distance_m, trip_min, suburb, winter))
+
+
+set.seed(260)
+options(na.action="na.pass")
+#split train:test = 80%:20%
+ind <- sample(2, nrow(bike_mod), replace = T, prob = c(0.8, 0.2))
+train <- bike_mod[ind==1,]
+over_train <- ovun.sample(user_type ~., data = train, method = "over")$data
+test <- bike_mod %>% anti_join(train)
+#one hot encode categorical variables for modeling 
+training <- model.matrix(~.+0, data = train[,-1])
+over_training <- model.matrix(~.+0, data = over_train[,-1])
+testing <- model.matrix(~.+0, data = test[,-1])
+train.labels <- as.integer(train$user_type)
+overtrain.labels <- as.integer(over_train$user_type)
+test.labels <- as.integer(test$user_type)
+
+```
+
+### Original Data 
+```{r}
+set.seed(260)
+#create train.test matrix for XGboost model 
+xgb.train = xgb.DMatrix(data=training,label=train.labels)
+xgb.test = xgb.DMatrix(data=testing,label=test.labels)
+xgb.fit=xgb.train(
+  booster="gbtree",
+  eval_metric = "mlogloss",
+  #step size shrinkage 
+  eta=0.05,
+  #maximum depth of a tree 
+  max_depth =4,
+  gamma = 0.01, 
+  #subsample ratio of the training to prevent overfitting
+  subsample = 0.7,
+  objective="binary:logistic",
+  data=xgb.train,
+  nrounds=100,
+)
+
+xgb.pred.prob <- predict(xgb.fit, testing, type = "response")
+#use 0.5 cutoff 
+xgb.pred <- ifelse(xgb.pred.prob > 0.5, 1, 0)
+
+confusionMatrix(as.factor(xgb.pred), as.factor(test.labels), positive = "1")
+
+imp <- xgb.importance(feature_names = colnames(training), model = xgb.fit) 
+
+pimp <- imp %>%
+  mutate(Feature = fct_reorder(Feature, Gain)) %>%
+  ggplot(data = ., aes(x=Gain, y = Feature)) +
+  geom_col(fill = "#213272") +
+  labs(title = "Feature Importance of XGboost for Prediction of User Type",
+       x = "Features",
+       y= "Gain") +
+  theme_light() +
+   theme(panel.grid.minor = element_blank(),
+        panel.grid.major.x = element_blank()) 
+pimp
+```
+
+
+The confusion matrix shows that the overall accuracy is 85.5%. The feature importance plot shows that the most predictive factors of user type are age, trip duration in minutes, and winter season. 
+
+
+While the model successful captures 98% of true subscribers, it only accurately predict 13.9% of true customers as actual customer. Considering the percentage of subscriber in the dataset is 85%, this model basically does no better than simply guessing. Since the class in this sample is very imbalanced, I will use oversample method to oversample the customer class and redo the XGboost model.     
+
+
+#### Oversampled Data 
+```{r}
+set.seed(260)
+xgb.train_over = xgb.DMatrix(data=over_training,label=overtrain.labels)
+xgb.fit_over =xgb.train(
+  booster="gbtree",
+  eval_metric = "mlogloss",
+  #step size shrinkage 
+  eta=0.05,
+  #maximum depth of a tree 
+  max_depth =4,
+  gamma = 0.01, 
+  #subsample ratio of the training to prevent overfitting
+  subsample = 0.7,
+  objective="binary:logistic",
+  data=xgb.train_over,
+  nrounds=100,
+)
+
+xgb.pred.prob_over <- predict(xgb.fit_over, testing, type = "response")
+#use 0.5 cutoff 
+xgb.pred_over <- ifelse(xgb.pred.prob_over > 0.5, 1, 0)
+
+confusionMatrix(as.factor(xgb.pred_over), as.factor(test.labels), positive = "1")
+
+imp2 <- xgb.importance(feature_names = colnames(over_training), model = xgb.fit_over) 
+
+pimp2 <- imp %>%
+  mutate(Feature = fct_reorder(Feature, Gain)) %>%
+  ggplot(data = ., aes(x=Gain, y = Feature)) +
+  geom_col(fill = "#213272") +
+  labs(title = "Feature Importance of XGboost for Prediction of User Type",
+       x = "Features",
+       y= "Gain") +
+  theme_light() +
+   theme(panel.grid.minor = element_blank(),
+        panel.grid.major.x = element_blank()) 
+pimp2
+```
+
+
+In this model, the accuracy is 69%, which becomes lower. The most important features are still age, trip duration in minutes, and winter. The sensitivity and specificity becomes more balanced, with sensitivity being 67.5% and specificity being 75.6%. 
+
+
+```{r}
+library(pROC)
+
+train_roc <- roc(test.labels,xgb.pred.prob)
+train_roc_over <- roc(test.labels,xgb.pred.prob_over)
+
+ggroc(list("Regular Data" = train_roc,
+           "Oversampled Data" = train_roc_over), legacy.axis = TRUE, aes = c("linetype", "color")) +
+  labs(title = "ROC Comparison Graphs",
+       x = "Specificity",
+       y = "Sensitivity") +
+  scale_color_manual(values = c("Regular Data" = "#36A3E2", "Oversampled Data" =  "#213272")
+    ,labels = c("Regular Data","Oversampled Data"))  +
+  scale_linetype_manual(
+                         values = c("solid",  "dotdash")) +
+  theme(legend.title = element_blank()) + 
+  geom_segment(aes(x = 1, xend = 0, y = 0, yend = 1), color = "black", linetype = "dashed")
+
+auc(train_roc)
+auc(train_roc_over)
+```
+
+
+The ROC and AUC are the same because oversampling is using the same information from a dataset and just replicates more rows of minority class. If we look at the graph we can see the relationship between sensitivity and specificity - when specificity shifts to 70%, the sensitivit is indeed about 75%. 
+
+The model's prediction accuracy is lower than that of the logistic regression. Here are some possible reasons: 
+
+1. While XGboost model already improves its model performance by building on weak learners, imbalanced class might still be a major problem in this dataset. 
+
+2. XGboost might overfit the model due to how it trians trees that are dependent on one and other and acheives low bias in the training set but might increase variance in the testing set. Also I did not use grid search to tune XGboost parameters here. Ways to improve the model include using cross-validation to balance bias and variance and using grid search to find the best parameters. 
+
+3. XGboost requires all categorical variable to be one hot encoded, which increases the dimension of the data and many columns may have mainly 0s.
+
+4. The variables I picked might not be important to predict user type and we might want to consider other variables or truncate the number variables. In real life scenario, if a simpler model (like our logistic regression model in this case) achieves the task with better prediction and interpretability, we should definitely use the simpler model.  
+
+5. Since each row is a bike trip, the model is predicting whether the person rides the bike is a subscriber/ customer based on the features of a bike trip, rather than predicting whether a person is a subscriber/ customer given their user behaviors. So there might not be clearly different patterns among bike trips initiated by subscribers and customers to make a good prediction. Alternatively, if we have more data, we might want a dataset with each user as a row and use their behaviors to predict their user type. 
+
+
+
+
