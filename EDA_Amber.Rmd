@@ -1,0 +1,70 @@
+---
+title: "EDA_Amber"
+author: "Amber"
+date: "01/12/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+## EDA
+```{r bike}
+library(tidyverse)
+library(plyr)
+bikedata <- data.frame(list.files(pattern = "*-citibike-tripdata.csv") %>% 
+  map_df(~read_csv(.)))
+#do.call("rbind", (lapply(paste("./docs/experimental/", sep = "", temp), read.delim)))
+
+#bikedata = read_csv("./docs/dataset_files/202004-citibike-tripdata.csv")
+
+print(summary(bikedata))
+colnames(bikedata) = c("trip_duration", "start_time","stop_time","start_station_id","start_station_name",
+                       "start_station_latitude","start_station_longitude","end_station_id","end_station_name",
+                       "end_station_latitude","end_station_longitude","bike_id","user_type","birth_year","gender")
+#bikedata <- bikedata[order(start_time),]
+bikedata$trip_date <- as.Date(bikedata$start_time)
+bikedata_summarized <- bikedata %>% group_by(trip_date, user_type) %>% dplyr::summarise(daily_trips = n())
+#bikedata_summarized <- bikedata_summarized[order(daily_trips),]
+
+plot <- ggplot(data = bikedata_summarized, aes(trip_date, daily_trips
+                                               , color = user_type
+                                               ))+
+  geom_line(size = 0.5)  + scale_y_continuous(labels = scales::comma) +
+  scale_colour_manual(values = c("#379DDA", "#E31A22")) + 
+  labs(title = "Citi Bike Trips per Day in 2020",
+       x = "Date", y = "Daily Trips", color = "user_type") +
+  theme_light() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.x = element_blank()
+  )
+plot
+
+
+bikedata$ampm <- ifelse(as.numeric(format(bikedata$start_time, '%H')) > 12, 'PM', 'AM')
+bikedata_summarized <- bikedata %>% group_by(trip_date, ampm) %>% dplyr::summarise(daily_trips = n())
+#bikedata_summarized$user_type <- as.factor(bikedata_summarized$user_type)
+#print(bikedata_summarized$ampm)
+plot2 <- ggplot(data = bikedata_summarized, aes(trip_date, daily_trips
+                                               , color = ampm,
+                                               group=interaction(ampm)
+)) +
+  geom_line(size = 0.5) + scale_y_continuous(labels = scales::comma) +
+    scale_colour_manual(values = c("#379DDA", "#E31A22"))+
+  labs(title = "Citi Bike Trips per Day in 2020",
+       x = "Date", y = "Daily Trips", color="AM/PM") +
+  theme_light() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.x = element_blank()
+  )
+plot2
+
+```
+

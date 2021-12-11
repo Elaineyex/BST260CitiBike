@@ -1,0 +1,237 @@
+---
+title: "EDA_Amber"
+author: "Amber"
+date: "01/12/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+## EDA
+```{r bike}
+library(tidyverse)
+library(plyr)
+bikedata <- data.frame(list.files(pattern = "*-citibike-tripdata.csv") %>% 
+  map_df(~read_csv(.)))
+#do.call("rbind", (lapply(paste("./docs/experimental/", sep = "", temp), read.delim)))
+
+#bikedata = read_csv("./docs/dataset_files/202004-citibike-tripdata.csv")
+
+print(summary(bikedata))
+colnames(bikedata) = c("trip_duration", "start_time","stop_time","start_station_id","start_station_name",
+                       "start_station_latitude","start_station_longitude","end_station_id","end_station_name",
+                       "end_station_latitude","end_station_longitude","bike_id","user_type","birth_year","gender")
+#bikedata <- bikedata[order(start_time),]
+bikedata$trip_date <- as.Date(bikedata$start_time)
+bikedata_summarized <- bikedata %>% group_by(trip_date, user_type) %>% dplyr::summarise(daily_trips = n())
+#bikedata_summarized <- bikedata_summarized[order(daily_trips),]
+
+plot <- ggplot(data = bikedata_summarized, aes(trip_date, daily_trips
+                                               , color = user_type
+                                               ))+
+  geom_line(size = 0.5)  + scale_y_continuous(labels = scales::comma) +
+  scale_colour_manual(values = c("#379DDA", "#E31A22")) + 
+  labs(title = "Citi Bike Trips per Day in 2020",
+       x = "Date", y = "Daily Trips", color = "user_type") +
+  theme_light() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.x = element_blank()
+  )
+plot
+
+
+bikedata$ampm <- ifelse(as.numeric(format(bikedata$start_time, '%H')) > 12, 'PM', 'AM')
+bikedata_summarized <- bikedata %>% group_by(trip_date, ampm) %>% dplyr::summarise(daily_trips = n())
+#bikedata_summarized$user_type <- as.factor(bikedata_summarized$user_type)
+#print(bikedata_summarized$ampm)
+plot2 <- ggplot(data = bikedata_summarized, aes(trip_date, daily_trips
+                                               , color = ampm,
+                                               group=interaction(ampm)
+)) +
+  geom_line(size = 0.5) + scale_y_continuous(labels = scales::comma) +
+    scale_colour_manual(values = c("#379DDA", "#E31A22"))+
+  labs(title = "Citi Bike Trips per Day in 2020",
+       x = "Date", y = "Daily Trips", color="AM/PM") +
+  theme_light() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.x = element_blank()
+  )
+plot2
+
+```
+
+## Forecasting
+
+```{r bike plot, echo=FALSE}
+#Univariate
+library(tidyverse)
+library(tseries)
+library(forecast)
+bikedata <- bikedata[order(bikedata$start_time),]
+
+
+#library(xts)
+#stocks <- xts(bikedata, order.by=as.Date(bikedata[,'trip_date'], "%m/%d/%Y"))
+#print(head(stocks))
+
+
+all_except_last_n_rows <- head(bikedata %>% group_by(trip_date)  %>% dplyr::summarise(daily_trips = n()), -5)
+all_except_last_n_rows
+mts <- ts(select(head(bikedata, -5) %>% group_by(trip_date)  %>% dplyr::summarise(daily_trips = n()), c('daily_trips')),
+          #start = min(as.Date(bikedata$trip_date)),
+           start = c(2020, 10, 1),
+           frequency = 365.25)
+fit <- auto.arima(mts)
+
+forecast(fit, 5)
+   
+plot(forecast(fit, 5), xlab ="Time",
+ylab ="Daily trips",
+main ="Basic Daily trips forecast", col.main ="darkgreen") 
+
+
+#exponential model
+fit <- HoltWinters(mts, beta=FALSE, gamma=FALSE)
+plot(forecast(fit, 5), xlab ="Time",
+ylab ="Daily trips",
+main ="Holt Winters forecast", col.main ="darkgreen")
+
+# double exponential and trend
+fit <- HoltWinters(mts, gamma=FALSE)
+plot(forecast(fit, 5), xlab ="Time",
+ylab ="Daily trips",
+main ="Double exponential forecast", col.main ="darkgreen")
+
+
+mts <- ts(select(head(bikedata, -5) %>% group_by(trip_date)  %>% dplyr::summarise(daily_trips = n()), c('daily_trips')),
+          #start = min(as.Date(bikedata$trip_date)),
+           start = c(2020, 10, 1),
+           frequency = 7)
+
+#triple exponential - including trend, and seasonal components
+fit <- HoltWinters(mts)
+plot(forecast(fit, 5), xlab ="Time",
+ylab ="Daily trips",
+main ="Triple Exponential Daily trips forecast", col.main ="darkgreen", xlim=c(2020, 2020.25))
+
+
+# predictive accuracy
+library(forecast)
+#accuracy(fit)
+
+#Decompose TS
+decomposedRes <- decompose(mts, type="additive") # use type = "additive" for additive components
+plot (decomposedRes)
+
+
+```
+As we may observe, the time series analsyis is able to capture trend (downward for the months shown in the graph) and cyclicity/seasonality (increased demand on weekends) even from a small dataset of 2 months. So for this analysis, we did not have to downsample. Instead, we recommended using a narrow window of 2 months each (we have captured results of two months for demonstration purpose).
+The predictions are quite good as well for the next 5 days. The best predictions are from triple exponential smoothing.
+Last, we used LSTM to demonstrate that the dataset is not large enough to run RNNs like LSTM and as we may observe, LSTM recommends just the mean value and does not essentially learn anything more than that.
+```{r LSTM, echo=FALSE}
+library(keras)
+library(tensorflow)
+
+library(ggplot2)
+head(economics)
+new_mts <- head(data.frame(mts), -5)
+scale_factors <- c(mean(new_mts$daily_trips), sd(new_mts$daily_trips))
+
+scaled_train <- new_mts %>%
+    dplyr::select(daily_trips) %>%
+    dplyr::mutate(daily_trips = (daily_trips - scale_factors[1]) / scale_factors[2])
+
+
+prediction <- 5
+lag <- prediction
+
+
+scaled_train <- as.matrix(scaled_train)
+
+# lag of 5
+x_train_data <- t(sapply(
+    1:(length(scaled_train) - lag - prediction + 1),
+    function(x) scaled_train[x:(x + lag - 1), 1]
+  ))
+
+x_train_arr <- array(
+    data = as.numeric(unlist(x_train_data)),
+    dim = c(
+        nrow(x_train_data),
+        lag,
+        1
+    )
+)
+
+
+y_train_data <- t(sapply(
+    (1 + lag):(length(scaled_train) - prediction + 1),
+    function(x) scaled_train[x:(x + prediction - 1)]
+))
+
+y_train_arr <- array(
+    data = as.numeric(unlist(y_train_data)),
+    dim = c(
+        nrow(y_train_data),
+        prediction,
+        1
+    )
+)
+
+x_test <- economics$unemploy[(nrow(scaled_train) - prediction + 1):nrow(scaled_train)]
+
+# scaling
+x_test_scaled <- (x_test - scale_factors[1]) / scale_factors[2]
+
+x_pred_arr <- array(
+    data = x_test_scaled,
+    dim = c(
+        1,
+        lag,
+        1
+    )
+)
+
+lstm_model <- keras_model_sequential()
+
+lstm_model %>%
+  layer_lstm(units = 50, 
+       batch_input_shape = c(1, 5, 1), 
+       return_sequences = TRUE,
+       stateful = TRUE) %>%
+  
+  layer_dropout(rate = 0.5) %>%
+  layer_lstm(units = 50,
+        return_sequences = TRUE,
+        stateful = TRUE) %>%
+  layer_dropout(rate = 0.5) %>%
+  time_distributed(keras::layer_dense(units = 1))
+
+
+lstm_model %>%
+    compile(loss = 'mae', metrics = 'accuracy', optimizer = 'adam')
+
+summary(lstm_model)
+
+
+lstm_forecast <- lstm_model %>%
+    predict(x_pred_arr, batch_size = 1) %>%
+    .[, , 1]
+
+lstm_forecast <- lstm_forecast * scale_factors[2] + scale_factors[1]
+
+print(lstm_forecast)
+
+
+
+
+
+```
