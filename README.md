@@ -19,7 +19,7 @@
 2) Run rmd files
 
 ```James_EDA.rmd``` and ```James_Model.rmd``` include visualizations and modeling related to User Type. This section of the report utilizes logistic regression to make predictions on user type per trip. 
-1) Download ```geo_sample.csv``` from Google Drive https://drive.google.com/file/d/1L1I5VYGJN5iJ94GSrvyuL3QCIWseJKXI/view?usp=sharing
+1) Download ```geo_sample.csv``` from Google Drive https://hu-my.sharepoint.com/:x:/g/personal/elaine_ye_hsph_harvard_edu/EWDqTV9U33VHms8Yv5l813MBpkHhYXD34VL4N5iMQCNteQ?e=3BVhQE
 2) Run rmd files
 
 ```EDA_QJ.rmd``` and ```Modeling_QJ.rmd``` include visualizations and modeling related to Trip Duration. This section of the report utilizes Random Forest to make predictions on trip duration. 
