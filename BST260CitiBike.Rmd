@@ -128,6 +128,29 @@ subway_sta <- read_csv("Data/DOITT_SUBWAY_STATION_01_13SEPT2010.csv")
 kable(subway_sta %>% select(NAME, the_geom, LINE) %>% head(n=5))
 ```
 
+# Exploratory Analysis
+
+Due to our large team size and outcome variables of interest, we have decided to split the results from exploratory analysis into different Rmd files. These files can be found in the [central github repository](https://github.com/Elaineyex/BST260CitiBike) for our project as the following files:  
+
+* EDA_Ian.Rmd (Daily Trips with Weather and COVID-19 data)
+* EDA_Amber.Rmd (Daily Trips over the course of 2020)
+* EDA_Ye.Rmd (Hourly/Daily/Monthly Trips by county and household income)
+* EDA_James.Rmd (Bike Trips by User Type - stratified by Gender, Month, Borough, Age, Season, Week)
+* EDA_QJ.Rmd (Trip Duration against Precipitation, Average Wind Speed and over Time)
+  
+Be sure to follow the steps in README.md to prepare the data to read in beforehand!
+
+# Final Analysis
+
+Due to the computational complexity of our models run on various outcome variables, we have decided to split the results from final analysis into different Rmd files as well. These files can be found in the [central github repository](https://github.com/Elaineyex/BST260CitiBike) for our project:
+
+* Modeling_James.Rmd (Rider Classification - Logistic Regression)
+* Modeling_Ye.Rmd (Rider Classification - XGBoost)
+* Modeling_QJ.Rmd (Trip Duration Regression - Random Forest)
+* Modeling_Amber.Rmd (Daily Trips Time Series - Holt-Winters and LSTM)
+
+Be sure to follow the steps in README.md to prepare the data to read in beforehand!
+
 
 
 
