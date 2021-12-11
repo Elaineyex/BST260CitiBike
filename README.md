@@ -26,8 +26,13 @@
 1) Download ```bike_join.Rdata``` from Google Drive https://drive.google.com/file/d/1K-Jc_kls_PFghMPSG0XHh72MNbAFngJF/view?usp=sharing
 2) Download ```COVIDcasedata.csv``` from Google Drive https://drive.google.com/file/d/1fp0pxZVh7rIYn13IawCbuFKgWW41Lvs-/view?usp=sharing
 3) Download ```NYCWeather.csv``` from Google Drive https://drive.google.com/file/d/10DOJLSRGz3UsnF9V4G0SODtUyrdiZcR-/view?usp=sharing
-4) Run rmd files (warning: Modeling_QJ.rmd takes a long time!)
-
+4) Run rmd files (warning: Modeling_QJ.rmd takes a long time! If encountering a vector memory exhausted error, follow the following steps:
+  i) Open terminal
+  ii) cd ~
+  iii) touch .Renviron
+  iv) open .Renviron
+  v) Save the following as the first line of .Renviron: R_MAX_VSIZE=100Gb
+ 
 ```EDA_Amber.rmd``` and ```Modeling_Amber.rmd``` include time-series prediction for daily trips using exponential, double exponential, holt-winter, and LSTM.
 1) Download https://www.dropbox.com/sh/6fnodxpoyr3txbk/AAC3u2SXfY8VP3itdfUvsxdHa?dl=0 and keep the excel files and .rmd files in the same folder
 2) Run .rmd files
