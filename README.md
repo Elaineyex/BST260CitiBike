@@ -2,7 +2,7 @@
 
 ## File Order
 1) ```BST260CitiBike.html```
-2) ```Data Processing.rmd``` 
+2) ```Data Processing.rmd``` (for reference, not necessary to run)
 3) ```EDA_.html``` files
 4) ```Modeling_.html``` files
 5) ```Shiny_``` folders
