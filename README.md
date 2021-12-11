@@ -22,3 +22,7 @@
 ```James_EDA.rmd``` and ```James_Model.rmd``` include visualizations and modeling related to User Type. This section of the report utilizes logistic regression to make predictions on user type per trip. 
 1) Download ```geo_sample.csv``` from Google Drive https://drive.google.com/file/d/1L1I5VYGJN5iJ94GSrvyuL3QCIWseJKXI/view?usp=sharing
 2) Run rmd 
+
+```EDA_Amber.rmd``` and ```Modeling_Amber.rmd``` include time-series prediction for daily trips using exponential, double exponential, holt-winter, and LSTM.
+1) Download https://www.dropbox.com/sh/6fnodxpoyr3txbk/AAC3u2SXfY8VP3itdfUvsxdHa?dl=0 and keep the excel files and .rmd files in the same folder
+2) Run .rmd files
