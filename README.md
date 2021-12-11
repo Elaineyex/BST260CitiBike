@@ -8,6 +8,8 @@
 5) ```Shiny_``` folders
 6) ```Data.rar``` (for reference)
 
+All the data are hosted in the OneDrive Folder: https://hu-my.sharepoint.com/:f:/g/personal/elaine_ye_hsph_harvard_edu/Enp4cHMie0NDigAXkRM7OuUBXUabQfooYYBa3ouYNe_cpA?e=j9ntU8
+
 ## Shiny App instructions
 1) Download the entire folder
 2) Unzip ```bikedata_sampled_1percent.csv``` into the folder
